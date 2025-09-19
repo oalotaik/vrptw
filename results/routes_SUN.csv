@@ -1,0 +1,56 @@
+day,vehicle,seq,location,start_time_min
+SUN,0,0,DEPOT,0
+SUN,0,1,Othaim 323,0
+SUN,0,2,Tamimi 155,69
+SUN,0,3,Othaim 421,109
+SUN,0,4,Tamimi 160,176
+SUN,0,5,Tamimi 150,214
+SUN,0,6,Al-Sadhan Sahafa,252
+SUN,0,7,Danube Tilal,313
+SUN,0,8,Tamimi 152,412
+SUN,0,9,DEPOT,507
+SUN,1,0,DEPOT,0
+SUN,1,1,Carrefour Granada,0
+SUN,1,2,Panda 104,214
+SUN,1,3,Carrefour Wadi,336
+SUN,1,4,DEPOT,396
+SUN,2,0,DEPOT,0
+SUN,2,1,Carrefour Sondus,0
+SUN,2,2,Danube Irqa,183
+SUN,2,3,Tamimi 142,219
+SUN,2,4,Tamimi 137,319
+SUN,2,5,Tamimi 148,420
+SUN,2,6,DEPOT,515
+SUN,3,0,DEPOT,0
+SUN,3,1,Panda 10029,0
+SUN,3,2,Othaim 15,152
+SUN,3,3,Danube Hayat Mall,198
+SUN,3,4,Panda 10022,462
+SUN,3,5,DEPOT,537
+SUN,4,0,DEPOT,0
+SUN,4,1,Al-Sadhan Muruj,0
+SUN,4,2,Othaim 7,41
+SUN,4,3,Carrefour Tala Mall,195
+SUN,4,4,Danube Ghadeer,347
+SUN,4,5,DEPOT,532
+SUN,6,0,DEPOT,0
+SUN,6,1,Lulu Yasmin,0
+SUN,6,2,Danube Yasmeen,80
+SUN,6,3,Spar Yasmin,178
+SUN,6,4,Othaim 344,259
+SUN,6,5,Tamimi 164,350
+SUN,6,6,Panda 170,448
+SUN,6,7,DEPOT,528
+SUN,8,0,DEPOT,0
+SUN,8,1,Al-Jazeera Rabia,0
+SUN,8,2,Panda 10003,83
+SUN,8,3,Tamimi 162,269
+SUN,8,4,Othaim 148,306
+SUN,8,5,DEPOT,481
+SUN,9,0,DEPOT,0
+SUN,9,1,Carrefour Riyadh Park,0
+SUN,9,2,Danube Aqeeq,121
+SUN,9,3,Tamimi 166,224
+SUN,9,4,Danube Hitteen,263
+SUN,9,5,Othaim 395,434
+SUN,9,6,DEPOT,514

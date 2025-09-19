@@ -1,0 +1,56 @@
+day,vehicle,seq,location,start_time_min
+SAT,0,0,DEPOT,0
+SAT,0,1,Tamimi 152,0
+SAT,0,2,Danube Tilal,37
+SAT,0,3,Al-Sadhan Sahafa,135
+SAT,0,4,Spar Aqiq,198
+SAT,0,5,Al-Jazeera Ghadeer,282
+SAT,0,6,Danube Aqeeq,347
+SAT,0,7,DEPOT,472
+SAT,2,0,DEPOT,0
+SAT,2,1,Panda 10029,0
+SAT,2,2,Othaim 15,77
+SAT,2,3,Panda 10022,146
+SAT,2,4,Danube Hayat Mall,227
+SAT,2,5,DEPOT,487
+SAT,3,0,DEPOT,0
+SAT,3,1,Othaim 38,0
+SAT,3,2,Carrefour Wadi,108
+SAT,3,3,Carrefour Tala Mall,151
+SAT,3,4,Danube Ghadeer,333
+SAT,3,5,DEPOT,488
+SAT,4,0,DEPOT,0
+SAT,4,1,Othaim 342,0
+SAT,4,2,Othaim 194,88
+SAT,4,3,Tamimi 166,216
+SAT,4,4,Danube Hitteen,315
+SAT,4,5,Panda 125,352
+SAT,4,6,Tamimi 148,437
+SAT,4,7,DEPOT,532
+SAT,5,0,DEPOT,0
+SAT,5,1,Carrefour Sondus,0
+SAT,5,2,Danube Irqa,78
+SAT,5,3,Tamimi 142,264
+SAT,5,4,Tamimi 137,364
+SAT,5,5,Othaim 170,402
+SAT,5,6,DEPOT,507
+SAT,7,0,DEPOT,0
+SAT,7,1,Tamimi 164,0
+SAT,7,2,Lulu Yasmin,41
+SAT,7,3,Danube Yasmeen,196
+SAT,7,4,Tamimi 155,357
+SAT,7,5,Panda 164,395
+SAT,7,6,DEPOT,475
+SAT,8,0,DEPOT,0
+SAT,8,1,Al-Jazeerah Yasmin,0
+SAT,8,2,Tamimi 150,81
+SAT,8,3,Farm 50,178
+SAT,8,4,Tamimi 160,303
+SAT,8,5,Tamimi 162,401
+SAT,8,6,DEPOT,436
+SAT,9,0,DEPOT,0
+SAT,9,1,Carrefour Granada,0
+SAT,9,2,Panda 104,214
+SAT,9,3,Othaim 156,277
+SAT,9,4,Panda 114,405
+SAT,9,5,DEPOT,525

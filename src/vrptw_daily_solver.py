@@ -156,7 +156,12 @@ def solve_vrptw(data: dict, time_limit_s: int = 60) -> dict:
 
     solution = routing.SolveWithParameters(params)
     if solution is None:
-        return {"feasible": False, "message": "No feasible solution found."}
+        return {
+            "feasible": False,
+            "day": data["day"],
+            "used_vehicles": 0,
+            "message": "No feasible solution found.",
+        }
 
     # Extract routes
     routes = []
@@ -198,8 +203,14 @@ def solve_vrptw(data: dict, time_limit_s: int = 60) -> dict:
 
 
 def save_outputs(result: dict, out_prefix: str):
+    # results/ at the same level as src/
+    results_dir = Path(__file__).resolve().parent.parent / "results"
+    results_dir.mkdir(parents=True, exist_ok=True)
+
+    json_path = results_dir / f"{out_prefix}.json"
+    csv_path = results_dir / f"{out_prefix}.csv"
+
     # JSON
-    json_path = f"{out_prefix}.json"
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
 
@@ -217,9 +228,12 @@ def save_outputs(result: dict, out_prefix: str):
                     "start_time_min": s["start_time"],
                 }
             )
-    import pandas as pd
 
-    pd.DataFrame(rows).to_csv(f"{out_prefix}.csv", index=False)
+    # import pandas as pd
+    pd.DataFrame(rows).to_csv(csv_path, index=False)
+
+    # Return paths for optional logging
+    return str(json_path), str(csv_path)
 
 
 def main():
@@ -227,8 +241,8 @@ def main():
     ap.add_argument(
         "--day", required=True, choices=DAYS, help="Day to solve (SAT..THU)"
     )
-    ap.add_argument("--schedule", default="../data/processed/schedule.csv")
-    ap.add_argument("--time_matrix", default="../data/processed/time_matrix.csv")
+    ap.add_argument("--schedule", default="data\\processed\\schedule.csv")
+    ap.add_argument("--time_matrix", default="data\\processed\\time_matrix.csv")
     ap.add_argument(
         "--time_windows",
         default=None,
@@ -277,9 +291,12 @@ def main():
         out_prefix = f"routes_{args.day}"
     else:
         out_prefix = args.out_prefix
-    save_outputs(result, out_prefix)
 
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    json_path, csv_path = save_outputs(result, out_prefix)
+    # Optional: a single short confirmation line (no routes printed)
+    print(
+        f"feasible={result['feasible']} day={result['day']} used_vehicles={result.get('used_vehicles', 0)}"
+    )
 
 
 if __name__ == "__main__":
