@@ -1,5 +1,9 @@
 import argparse
 import json
+import sys
+import time
+import threading
+import shutil
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 
@@ -9,6 +13,7 @@ from ortools.constraint_solver import pywrapcp, routing_enums_pb2
 DAYS = ["SAT", "SUN", "MON", "TUE", "WED", "THU"]
 
 
+# -------- Utilities to load data --------
 def load_schedule(schedule_path: str) -> pd.DataFrame:
     df = pd.read_csv(schedule_path)
     assert "location" in df.columns, "schedule.csv must have a 'location' column"
@@ -19,7 +24,6 @@ def load_schedule(schedule_path: str) -> pd.DataFrame:
 
 def load_time_matrix(time_matrix_path: str) -> pd.DataFrame:
     tm = pd.read_csv(time_matrix_path, index_col=0)
-    # Expect square matrix with identical index/columns = location names
     assert tm.index.tolist() == tm.columns.tolist(), (
         "time_matrix.csv must be square with same ordered location labels on index and columns"
     )
@@ -30,7 +34,6 @@ def load_time_windows(
     path: Optional[str], locations: List[str]
 ) -> Dict[str, Tuple[int, int]]:
     if path is None or not Path(path).exists():
-        # Wide windows by default: [0, 9h]
         nine_h = 9 * 60
         return {loc: (0, nine_h) for loc in locations}
     tw = pd.read_csv(path)
@@ -39,7 +42,6 @@ def load_time_windows(
     )
     m = dict(zip(tw["location"], zip(tw["start"], tw["end"])))
     nine_h = 9 * 60
-    # Any missing => default wide
     return {loc: m.get(loc, (0, nine_h)) for loc in locations}
 
 
@@ -52,51 +54,40 @@ def build_day_instance(
     vehicle_fixed_cost: int = 10**6,
 ):
     assert day in DAYS, f"day must be one of {DAYS}"
-    # Locations visited today (service time > 0)
     todays = schedule_df.loc[schedule_df[day] > 0, ["location", day]].copy()
     todays.rename(columns={day: "service"}, inplace=True)
     locations_today = todays["location"].tolist()
-
     if len(locations_today) == 0:
         raise ValueError(f"No locations scheduled for {day}")
-
-    # Subset the full time matrix to today's locations (preserve order)
     tm_sub = time_matrix_df.loc[locations_today, locations_today].copy()
-
-    # Build data dict for OR-Tools
     N = len(locations_today)
     data = {
         "locations": locations_today,
         "num_customers": N,
         "service_times": todays["service"].astype(int).tolist(),
-        "time_windows": [
-            time_windows_map[loc] for loc in locations_today
-        ],  # list aligned to locations_today
+        "time_windows": [time_windows_map[loc] for loc in locations_today],
         "time_matrix": tm_sub.values.astype(int).tolist(),
-        "shift_minutes": 9 * 60,
+        "shift_minutes": 12 * 60,
         "vehicle_fixed_cost": vehicle_fixed_cost,
-        "max_vehicles": (
-            max_vehicles if max_vehicles is not None else N
-        ),  # upper bound: each stop could be its own route
+        "max_vehicles": (max_vehicles if max_vehicles is not None else N),
         "day": day,
     }
     return data
 
 
-def solve_vrptw(data: dict, time_limit_s: int = 60) -> dict:
+# -------- Solver --------
+def solve_vrptw(data: dict, time_limit_s: int = 30) -> dict:
     N = data["num_customers"]
-    depot = N  # virtual depot after customers
+    depot = N
     manager = pywrapcp.RoutingIndexManager(N + 1, data["max_vehicles"], depot)
     routing = pywrapcp.RoutingModel(manager)
 
-    # Index mapping for readability
     locs = data["locations"]
     service_times = data["service_times"]
     time_matrix = data["time_matrix"]
     time_windows = data["time_windows"]
     shift = data["shift_minutes"]
 
-    # Transit callbacks
     def travel_time_cb(from_index, to_index):
         i = manager.IndexToNode(from_index)
         j = manager.IndexToNode(to_index)
@@ -115,37 +106,38 @@ def solve_vrptw(data: dict, time_limit_s: int = 60) -> dict:
     time_eval = routing.RegisterTransitCallback(time_cb)
     routing.SetArcCostEvaluatorOfAllVehicles(travel_eval)
 
-    # Vehicle fixed cost to minimize #vehicles
     for v in range(data["max_vehicles"]):
         routing.SetFixedCostOfVehicle(int(data["vehicle_fixed_cost"]), v)
 
-    # Time dimension
     routing.AddDimension(
         time_eval,
-        shift,  # allow waiting up to shift
-        shift,  # latest time
+        shift,
+        shift,
         True,
         "Time",
     )
     time_dim = routing.GetDimensionOrDie("Time")
+    # Encourage compact routes (secondary objective; keep small vs vehicle fixed cost):
+    # time_dim.SetGlobalSpanCostCoefficient(100)
 
-    # Apply time windows to customer nodes
     for i in range(N):
         idx = manager.NodeToIndex(i)
         start, end = time_windows[i]
         time_dim.CumulVar(idx).SetRange(int(start), int(end))
 
-    # Depot starts at 0
     depot_idx = manager.NodeToIndex(depot)
     time_dim.CumulVar(depot_idx).SetRange(0, 0)
 
-    # End times capped by shift
     for v in range(data["max_vehicles"]):
         end = routing.End(v)
         time_dim.CumulVar(end).SetMax(shift)
 
-    # Search params
     params = pywrapcp.DefaultRoutingSearchParameters()
+
+    # params.first_solution_strategy = (
+    #     routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION
+    # )
+
     params.first_solution_strategy = (
         routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
     )
@@ -163,7 +155,6 @@ def solve_vrptw(data: dict, time_limit_s: int = 60) -> dict:
             "message": "No feasible solution found.",
         }
 
-    # Extract routes
     routes = []
     used_vehicles = 0
     total_travel = 0
@@ -177,15 +168,11 @@ def solve_vrptw(data: dict, time_limit_s: int = 60) -> dict:
             node = manager.IndexToNode(index)
             t = solution.Value(time_dim.CumulVar(index))
             r["stops"].append(
-                {
-                    "node": "DEPOT" if node == depot else locs[node],
-                    "start_time": int(t),
-                }
+                {"node": "DEPOT" if node == depot else locs[node], "start_time": int(t)}
             )
             nxt = solution.Value(routing.NextVar(index))
             total_travel += routing.GetArcCostForVehicle(index, nxt, v)
             index = nxt
-        # end node
         node = manager.IndexToNode(index)
         t = solution.Value(time_dim.CumulVar(index))
         r["stops"].append(
@@ -202,40 +189,95 @@ def solve_vrptw(data: dict, time_limit_s: int = 60) -> dict:
     }
 
 
+# -------- Output saving into results/ (sibling of src/) --------
 def save_outputs(result: dict, out_prefix: str):
-    # results/ at the same level as src/
     results_dir = Path(__file__).resolve().parent.parent / "results"
     results_dir.mkdir(parents=True, exist_ok=True)
-
     json_path = results_dir / f"{out_prefix}.json"
     csv_path = results_dir / f"{out_prefix}.csv"
 
-    # JSON
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
 
-    # CSV (one row per stop)
     rows = []
     for r in result.get("routes", []):
         v = r["vehicle"]
         for k, s in enumerate(r["stops"]):
             rows.append(
                 {
-                    "day": result["day"],
+                    "day": result.get("day"),
                     "vehicle": v,
                     "seq": k,
                     "location": s["node"],
                     "start_time_min": s["start_time"],
                 }
             )
-
-    # import pandas as pd
     pd.DataFrame(rows).to_csv(csv_path, index=False)
-
-    # Return paths for optional logging
     return str(json_path), str(csv_path)
 
 
+# -------- Console progress (time countdown) --------
+class TimeProgressBar:
+    def __init__(
+        self,
+        total_seconds: int,
+        label: str = "solve",
+        update_interval: float = 0.2,
+        newline_on_stop: bool = True,
+    ):
+        self.total = max(int(total_seconds), 0)
+        self.label = label
+        self.update_interval = update_interval
+        self._stop = threading.Event()
+        self._thread = None
+        self._newline_on_stop = bool(newline_on_stop)
+
+    def start(self):
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+        return self
+
+    def stop(self):
+        self._stop.set()
+        if self._thread:
+            self._thread.join()
+        # Clear the line
+        sys.stdout.write(
+            "" + " " * (shutil.get_terminal_size((80, 20)).columns - 1) + ""
+        )
+        sys.stdout.flush()
+        if self._newline_on_stop:
+            sys.stdout.write("")
+            sys.stdout.flush()
+
+    def _run(self):
+        start = time.time()
+        while not self._stop.is_set():
+            elapsed = time.time() - start
+            if self.total > 0:
+                if elapsed > self.total:
+                    elapsed = self.total
+                pct = elapsed / self.total
+                remaining = self.total - elapsed
+            else:
+                pct = 1.0
+                remaining = 0
+            cols = shutil.get_terminal_size((80, 20)).columns
+            bar_width = max(10, min(50, cols - 40))
+            filled = int(bar_width * pct)
+            bar = "#" * filled + "." * (bar_width - filled)
+            mm = int(remaining // 60)
+            ss = int(remaining % 60)
+            sys.stdout.write(
+                f"\r{self.label} [{bar}] {int(pct * 100):3d}%  {mm:02d}:{ss:02d} left"
+            )
+            sys.stdout.flush()
+            if self.total and elapsed >= self.total:
+                break
+            time.sleep(self.update_interval)
+
+
+# -------- CLI --------
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument(
@@ -243,28 +285,15 @@ def main():
     )
     ap.add_argument("--schedule", default="data\\processed\\schedule.csv")
     ap.add_argument("--time_matrix", default="data\\processed\\time_matrix.csv")
-    ap.add_argument(
-        "--time_windows",
-        default=None,
-        help="Optional CSV with columns: location,start,end (minutes)",
-    )
-    ap.add_argument(
-        "--max_vehicles",
-        type=int,
-        default=15,
-        help="Upper bound on vehicles (default: #stops)",
-    )
+    ap.add_argument("--time_windows", default=None)
+    ap.add_argument("--max_vehicles", type=int, default=10)
     ap.add_argument("--vehicle_fixed_cost", type=int, default=10**6)
-    ap.add_argument("--time_limit", type=int, default=60)
-    ap.add_argument(
-        "--out_prefix", default=None, help="Prefix for outputs; default: routes_{DAY}"
-    )
+    ap.add_argument("--time_limit", type=int, default=30)
+    ap.add_argument("--out_prefix", default=None)
     args = ap.parse_args()
 
     schedule_df = load_schedule(args.schedule)
     time_matrix_df = load_time_matrix(args.time_matrix)
-
-    # Validate names alignment
     schedule_names = set(schedule_df["location"])
     matrix_names = set(time_matrix_df.index.tolist())
     missing_in_matrix = schedule_names - matrix_names
@@ -273,8 +302,6 @@ def main():
             f"These schedule locations are missing from time_matrix: {sorted(missing_in_matrix)[:10]} ..."
         )
 
-    # Build time windows map (global, per location)
-    # Note: if you have day-specific windows, you can provide separate files or extend loader logic.
     tw_map = load_time_windows(args.time_windows, time_matrix_df.index.tolist())
 
     data = build_day_instance(
@@ -285,15 +312,21 @@ def main():
         max_vehicles=args.max_vehicles,
         vehicle_fixed_cost=args.vehicle_fixed_cost,
     )
-    result = solve_vrptw(data, time_limit_s=args.time_limit)
+
+    # Countdown bar during solve
+    bar = TimeProgressBar(args.time_limit, label=f"{args.day} solve").start()
+    try:
+        result = solve_vrptw(data, time_limit_s=args.time_limit)
+    finally:
+        bar.stop()
 
     if args.out_prefix is None:
         out_prefix = f"routes_{args.day}"
     else:
         out_prefix = args.out_prefix
+    save_outputs(result, out_prefix)
 
-    json_path, csv_path = save_outputs(result, out_prefix)
-    # Optional: a single short confirmation line (no routes printed)
+    # Minimal final print
     print(
         f"feasible={result['feasible']} day={result['day']} used_vehicles={result.get('used_vehicles', 0)}"
     )
