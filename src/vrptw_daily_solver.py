@@ -8,7 +8,9 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 
 import pandas as pd
-from ortools.constraint_solver import pywrapcp, routing_enums_pb2
+from ortools.constraint_solver import pywrapcp
+from ortools.constraint_solver import routing_enums_pb2 as re2
+
 
 DAYS = ["SAT", "SUN", "MON", "TUE", "WED", "THU"]
 
@@ -67,7 +69,7 @@ def build_day_instance(
         "service_times": todays["service"].astype(int).tolist(),
         "time_windows": [time_windows_map[loc] for loc in locations_today],
         "time_matrix": tm_sub.values.astype(int).tolist(),
-        "shift_minutes": 12 * 60,
+        "shift_minutes": 12 * 60,  # 12 hours shift
         "vehicle_fixed_cost": vehicle_fixed_cost,
         "max_vehicles": (max_vehicles if max_vehicles is not None else N),
         "day": day,
@@ -133,17 +135,19 @@ def solve_vrptw(data: dict, time_limit_s: int = 30) -> dict:
         time_dim.CumulVar(end).SetMax(shift)
 
     params = pywrapcp.DefaultRoutingSearchParameters()
-
     # params.first_solution_strategy = (
-    #     routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION
+    #     re2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
     # )
+    # params.first_solution_strategy = (
+    #     re2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION
+    # )
+    # Alternative to try: SAVINGS (sometimes packs even tighter)
+    params.first_solution_strategy = re2.FirstSolutionStrategy.SAVINGS
 
-    params.first_solution_strategy = (
-        routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
-    )
-    params.local_search_metaheuristic = (
-        routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
-    )
+    params.local_search_metaheuristic = re2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
+
+    # params.local_search_metaheuristic = re2.LocalSearchMetaheuristic.TABU_SEARCH
+
     params.time_limit.FromSeconds(time_limit_s)
 
     solution = routing.SolveWithParameters(params)
