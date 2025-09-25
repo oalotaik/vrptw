@@ -258,6 +258,7 @@ def make_plots(
     ]:
         series = per_route_all[col].dropna().values
         plt.figure()
+        _set_pub_style()
         plt.hist(series, bins=20)
         plt.title(title)
         plt.xlabel(xlabel)
@@ -267,35 +268,68 @@ def make_plots(
         plt.close()
 
     # Per-day bars
-    # Avg overtime hours by day
+    # Avg Overtime Hours by Day (line)
     plt.figure()
-    plt.bar(per_day["day"], per_day["avg_overtime_hours"])
+    _set_pub_style()
+    plt.plot(per_day["day"], per_day["avg_overtime_hours"], marker="o")
     plt.title("Avg Overtime Hours by Day")
     plt.xlabel("Day")
     plt.ylabel("Avg overtime (hours)")
     plt.tight_layout()
-    plt.savefig(out_dir / "bar_avg_overtime_by_day.png")
+    plt.savefig(out_dir / "line_avg_overtime_by_day.png")
+    plt.savefig(out_dir / "line_avg_overtime_by_day.svg")
     plt.close()
 
-    # Num routes by day
+    # Number of Routes by Day (line)
     plt.figure()
-    plt.bar(per_day["day"], per_day["num_routes"])
+    _set_pub_style()
+    plt.plot(per_day["day"], per_day["num_routes"], marker="o")
     plt.title("Number of Routes by Day")
     plt.xlabel("Day")
     plt.ylabel("Routes")
     plt.tight_layout()
-    plt.savefig(out_dir / "bar_routes_by_day.png")
+    plt.savefig(out_dir / "line_routes_by_day.png")
+    plt.savefig(out_dir / "line_routes_by_day.svg")
     plt.close()
 
-    # Total visits by day
+    # Total Visits by Day (line)
     plt.figure()
-    plt.bar(per_day["day"], per_day["total_visits"])
+    _set_pub_style()
+    plt.plot(per_day["day"], per_day["total_visits"], marker="o")
     plt.title("Total Visits by Day")
     plt.xlabel("Day")
     plt.ylabel("Visits")
     plt.tight_layout()
-    plt.savefig(out_dir / "bar_total_visits_by_day.png")
+    plt.savefig(out_dir / "line_total_visits_by_day.png")
+    plt.savefig(out_dir / "line_total_visits_by_day.svg")
     plt.close()
+
+
+def _set_pub_style():
+    """Matplotlib settings for publication-quality, single-figure charts.
+    No explicit colors; use defaults. One chart per figure.
+    """
+    import matplotlib as mpl
+
+    mpl.rcParams.update(
+        {
+            "figure.figsize": (6, 4),  # nice aspect ratio for papers
+            "figure.dpi": 150,
+            "savefig.dpi": 300,  # hi-res PNG output
+            "savefig.bbox": "tight",
+            "font.size": 11,
+            "axes.titlesize": 12,
+            "axes.labelsize": 11,
+            "xtick.labelsize": 10,
+            "ytick.labelsize": 10,
+            "legend.fontsize": 10,
+            "axes.grid": True,
+            "grid.linestyle": "--",
+            "grid.alpha": 0.5,
+            "lines.linewidth": 2.0,
+            "lines.markersize": 5.0,
+        }
+    )
 
 
 def main():
