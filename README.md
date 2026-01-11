@@ -1,50 +1,38 @@
-# Project Title
+# VRPTW: Weekly Schedule with Time-Delay Constraints
 
-## Overview
-Brief description of your project, including its main purpose and key features. (2-3 sentences)
+![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
+![Optimization](https://img.shields.io/badge/Optimization-VRPTW-green)
+![Status](https://img.shields.io/badge/Status-Active-success)
 
-## Problem Statement
-- Describe the optimization/ML problem being solved
-- Key objectives
-- Constraints (if applicable)
+## 📌 Overview
 
-## Methods/Architecture
-- List of algorithms/methods used (e.g., MILP, Genetic Algorithm, CNN, etc.)
-- Model architecture (for DL projects)
-- Optimization formulation (for exact methods)
-- Key parameters and hyperparameters
+This repository contains a Python-based modeling approach for a **unique variant of the Vehicle Routing Problem with Time Windows (VRPTW)**. Unlike standard VRPTW formulations, this model addresses complex scheduling requirements over a **weekly horizon**, incorporating service times, selective time windows, and critical time-delay constraints.
 
-## Requirements
-```bash
-numpy==1.21.0
-pytorch==1.9.0
-scikit-learn==0.24.2
-# Add other dependencies
-```
-## Project Structure
+The core objective is to optimize routing while strictly enforcing **time gaps between consecutive visits**, making it highly applicable to scenarios like recurring maintenance, healthcare logistics, or security patrolling where "visit spacing" is mandatory.
 
-```basic
-├── data/              # Dataset files
-│   ├── processed/     # Cleaned and processed data
-│   └── raw/          # Original data
-├── models/            # Trained models
-├── notebooks/         # Jupyter notebooks
-├── references/        # Papers, documentation, etc.
-├── src/              # Source code
-│   ├── data.py       # Data processing functions
-│   ├── models.py     # Model implementations
-│   └── utils.py      # Utility functions
-├── .gitignore        # Git ignore file
-├── README.md         # Project documentation
-└── requirements.txt  # Dependencies
-```
+## 🚀 Key Features
 
-## Setup and Installation
-```bash
-git clone https://github.com/username/project-name.git
-cd project-name
-pip install -r requirements.txt
-```
+* **Weekly Scheduling Horizon:** Optimization is performed over a multi-day (7-day) period rather than a single day.
+* **Time-Delay Constraints:** Enforces a minimum and/or maximum time gap between consecutive visits to the same node or specific node pairs.
+* **Selective Time Windows:** Handles nodes that have specific availability windows (e.g., business hours) versus those available 24/7.
+* **Service Time Integration:** accurately accounts for the duration of tasks performed at each stop.
+
+
+
+## ⚙️ Mathematical Context
+
+This project solves a variation of the VRPTW where the standard constraint:
+$$a_j \ge a_i + s_i + t_{ij}$$
+
+Is expanded to include a **Time-Gap ($G$)** requirement for specific visit sequences:
+$$a_{next} \ge a_{prev} + s_{prev} + t_{prev,next} + G_{gap}$$
+
+Where:
+* $a_i$: Arrival time at node $i$
+* $s_i$: Service time at node $i$
+* $t_{ij}$: Travel time between $i$ and $j$
+* $G_{gap}$: Mandatory delay/gap required before the next service.
+
 
 ## Results
 
