@@ -18,25 +18,9 @@ The core objective is to optimize routing while strictly enforcing **time gaps b
 * **Service Time Integration:** accurately accounts for the duration of tasks performed at each stop.
 
 
-
-## ⚙️ Mathematical Context
-
-This project solves a variation of the VRPTW where the standard constraint:
-$$a_j \ge a_i + s_i + t_{ij}$$
-
-Is expanded to include a **Time-Gap ($G$)** requirement for specific visit sequences:
-$$a_{next} \ge a_{prev} + s_{prev} + t_{prev,next} + G_{gap}$$
-
-Where:
-* $a_i$: Arrival time at node $i$
-* $s_i$: Service time at node $i$
-* $t_{ij}$: Travel time between $i$ and $j$
-* $G_{gap}$: Mandatory delay/gap required before the next service.
-
-
 ## Results
 
-Summarize the main results
+To be updated
 
 ## Citation
 If this project was useful for your research, please cite:
