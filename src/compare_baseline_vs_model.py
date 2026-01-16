@@ -3,6 +3,8 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import PercentFormatter
+
 
 DAY_ORDER_BASE = ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu"]
 DAY_ORDER_MODEL = ["SAT", "SUN", "MON", "TUE", "WED", "THU"]
@@ -133,6 +135,82 @@ def make_line_plots(comp: pd.DataFrame, out_dir: Path):
         plt.close()
 
 
+def make_panel_plots(comp: pd.DataFrame, out_dir: Path):
+    """Create three multi-panel figures:
+    A) Service + Staffing: total_visits, num_routes
+    B) Consolidation + Time Cost: avg_stops_per_route, avg_route_length_min, avg_overtime_hours, pct_routes_with_overtime
+    C) Fairness: std_route_length_min, std_overtime_hours, std_stops_per_route
+    """
+    panel_dir = out_dir / "panel-plots"
+    panel_dir.mkdir(parents=True, exist_ok=True)
+
+    # Consistent colors
+    COLOR_MODEL = "#1f77b4"  # blue
+    COLOR_BASE = "#ff7f0e"  # orange
+
+    # X axis
+    x = comp["day_plot"].tolist()
+
+    def _plot_pair(ax, metric: str, title: str):
+        yb = comp[f"{metric}_baseline"].values
+        ym = comp[f"{metric}_model"].values
+        ax.plot(x, yb, marker="o", linewidth=2.0, label="Baseline", color=COLOR_BASE)
+        ax.plot(x, ym, marker="s", linewidth=2.0, label="Model", color=COLOR_MODEL)
+        ax.set_title(title)
+        ax.set_xlabel("Day")
+        ax.set_ylabel(_ylabel(metric))
+        ax.grid(True, linestyle="--", alpha=0.5)
+        if _is_percent(metric):
+            ax.yaxis.set_major_formatter(PercentFormatter(100))
+            ax.set_ylim(0, 100)
+        ax.legend(frameon=False)
+
+    # Figure A: Service + Staffing (1x2)
+    _set_pub_style()
+    figA, axesA = plt.subplots(1, 2, figsize=(10, 4), dpi=150)
+    metricsA = ["total_visits", "num_routes"]
+    for ax, m in zip(axesA, metricsA):
+        _plot_pair(ax, m, _pretty_label(m))
+    figA.suptitle("Figure A: Service And Staffing", fontsize=13)
+    figA.tight_layout(rect=[0, 0, 1, 0.98])
+    figA.savefig(panel_dir / "Figure_A_service_staffing.png")
+    # figA.savefig(panel_dir / "Figure_A_service_staffing.svg")
+    plt.close(figA)
+
+    # Figure B: Consolidation + Time Cost (2x2)
+    _set_pub_style()
+    figB, axesB = plt.subplots(2, 2, figsize=(10, 8), dpi=150)
+    metricsB = [
+        "avg_stops_per_route",
+        "avg_route_length_min",
+        "avg_overtime_hours",
+        "pct_routes_with_overtime",
+    ]
+    for ax, m in zip(axesB.flatten(), metricsB):
+        _plot_pair(ax, m, _pretty_label(m))
+    figB.suptitle("Figure B: Consolidation And Time Cost", fontsize=13)
+    figB.tight_layout(rect=[0, 0, 1, 0.98])
+    figB.savefig(panel_dir / "Figure_B_consolidation_time_cost.png")
+    # figB.savefig(panel_dir / "Figure_B_consolidation_time_cost.svg")
+    plt.close(figB)
+
+    # Figure C: Fairness (1x3)
+    _set_pub_style()
+    figC, axesC = plt.subplots(1, 3, figsize=(12, 4), dpi=150)
+    metricsC = [
+        "std_route_length_min",
+        "std_overtime_hours",
+        "std_stops_per_route",
+    ]
+    for ax, m in zip(axesC, metricsC):
+        _plot_pair(ax, m, _pretty_label(m))
+    figC.suptitle("Figure C: Fairness", fontsize=13)
+    figC.tight_layout(rect=[0, 0, 1, 0.98])
+    figC.savefig(panel_dir / "Figure_C_fairness.png")
+    # figC.savefig(panel_dir / "Figure_C_fairness.svg")
+    plt.close(figC)
+
+
 def _set_pub_style():
     """Matplotlib settings for publication-quality, single-figure charts.
     No explicit colors; use defaults. One chart per figure.
@@ -158,6 +236,40 @@ def _set_pub_style():
             "lines.markersize": 5.0,
         }
     )
+
+
+def _pretty_label(metric: str) -> str:
+    m = {
+        "total_visits": "Total Visits",
+        "num_routes": "Number Of Routes",
+        "avg_route_length_min": "Average Route Length (Minutes)",
+        "std_route_length_min": "Std Dev Of Route Length (Minutes)",
+        "avg_stops_per_route": "Average Stops Per Route",
+        "std_stops_per_route": "Std Dev Of Stops Per Route",
+        "avg_overtime_hours": "Average Overtime (Hours)",
+        "std_overtime_hours": "Std Dev Of Overtime (Hours)",
+        "pct_routes_with_overtime": "Percent Of Routes With Overtime",
+    }
+    return m.get(metric, metric.replace("_", " ").title())
+
+
+def _ylabel(metric: str) -> str:
+    y = {
+        "total_visits": "Visits",
+        "num_routes": "Routes",
+        "avg_route_length_min": "Minutes",
+        "std_route_length_min": "Minutes",
+        "avg_stops_per_route": "Stops",
+        "std_stops_per_route": "Stops",
+        "avg_overtime_hours": "Hours",
+        "std_overtime_hours": "Hours",
+        "pct_routes_with_overtime": "Percent",
+    }
+    return y.get(metric, metric.replace("_", " ").title())
+
+
+def _is_percent(metric: str) -> bool:
+    return metric.startswith("pct_")
 
 
 def main():
@@ -224,6 +336,7 @@ def main():
     comp = comparison_table(bdf, mdf)
     save_tables(comp, out_dir)
     make_line_plots(comp, out_dir)
+    make_panel_plots(comp, out_dir)
 
     print(f"[OK] Wrote comparison tables and plots to: {out_dir}")
 
